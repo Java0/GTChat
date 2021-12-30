@@ -6,7 +6,6 @@ import com.goodtime.chatRoom.client.Client;
 import com.goodtime.chatRoom.Text;
 import com.goodtime.chatRoom.client.GUI.PrimaryPage;
 import com.goodtime.chatRoom.client.GUI.StageUtil;
-import com.goodtime.chatRoom.client.TimeUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -29,6 +28,9 @@ public class RegistryController {
 
     @FXML
     private Button regButton;
+
+    @FXML
+    private Button back;
 
     @FXML
     private Label warning;
@@ -68,6 +70,12 @@ public class RegistryController {
         }
         return true;
     }
+
+    @FXML
+    void back(ActionEvent event) throws IOException{
+        StageUtil.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
+    }
+
 
 }
 

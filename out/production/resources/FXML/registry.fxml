@@ -22,5 +22,6 @@
         <TextField fx:id="userName" layoutX="119.0" layoutY="127.0" />
         <Button fx:id="regButton" layoutX="119.0" layoutY="272.0" mnemonicParsing="false" onAction="#register" text="Register" />
         <Label fx:id="warning" layoutX="249.0" layoutY="276.0" />
+      <Button fx:id="back" layoutX="218.0" layoutY="272.0" mnemonicParsing="false" onAction="#back" prefHeight="23.0" prefWidth="63.0" text="Back" />
     </children>
 </AnchorPane>

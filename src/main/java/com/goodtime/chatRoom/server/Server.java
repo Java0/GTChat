@@ -1,15 +1,10 @@
 package com.goodtime.chatRoom.server;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goodtime.chatRoom.Text;
-import com.goodtime.chatRoom.client.TimeUtil;
 import org.apache.commons.codec.binary.Hex;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
@@ -38,7 +33,6 @@ public class Server {
                 ByteBuffer buffer = ByteBuffer.allocate(4096);
 
                 buffer.clear();
-
                 client.read(buffer);
 
                 //将json格式字符串还原回Text对象
@@ -56,7 +50,6 @@ public class Server {
                         }).start();
                         break;
                 }
-
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -80,6 +73,7 @@ public class Server {
         //判断用户是否已存在，若已经存在向客户端发送注册失败的消息，不存在就将用户信息存储进文件
         if(regInfo.getProperty(text.getSender())!=null){
             client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
+            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(),"失败");
         }else {
             try {
                 regInfo.setProperty(text.getSender(), getEncryptedString(text.getContent()));
@@ -88,6 +82,7 @@ public class Server {
             }
             regInfo.store(new FileWriter("regInfo.properties"), "The user's registration information, user name and password are stored");
             client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
+            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(),"成功");
         }
     }
 
@@ -97,5 +92,24 @@ public class Server {
         byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
         return Hex.encodeHexString(hash);
     }
+
+
+    private static void storeLog(String time, String type, String sender, String content) throws  IOException{
+        String log = time.concat(":\n").concat("type:").concat(type).concat("  sender:").concat(sender).concat("  content:").concat(content).concat("\n");
+
+        File logFile = new File("log.txt");
+
+        if(!logFile.exists()){
+            logFile.createNewFile();
+        }
+
+        FileOutputStream fos = new FileOutputStream(logFile,true);
+        fos.write(log.getBytes(StandardCharsets.UTF_8));
+        fos.close();
+
+    }
+
+
+
 
 }
