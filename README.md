@@ -1,2 +1,2 @@
 # GTChat
-A chatroome. Just for practice
+A chatrome. Just for practice
