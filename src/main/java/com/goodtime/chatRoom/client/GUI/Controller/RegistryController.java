@@ -38,16 +38,15 @@ public class RegistryController {
     @FXML
     void register(ActionEvent event) throws IOException {
         if (formatCheck()) {
-            Client.write(
-                    new ObjectMapper().writeValueAsString(
-                            new Text( "reg", userName.getText(), password.getText()))
-            );
-        }
+            String text = new ObjectMapper().writeValueAsString(new Text( "reg", userName.getText(), password.getText()));
+            System.out.println(text);
+            Client.write(text);
 
-        if(Client.read().trim().equals("成功")){
-            StageUtil.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
-        }else {
-            warning.setText("用户名已注册");
+            if(Client.read().trim().equals("成功")){
+                StageUtil.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
+            }else {
+                warning.setText("用户名已注册");
+            }
         }
     }
 
@@ -55,8 +54,8 @@ public class RegistryController {
         if (userName.getLength() == 0 || password.getLength() == 0 || repeat.getLength() == 0) {
             warning.setText("为什么不行自己没点b数吗");
             return false;
-        } else if (userName.getLength() == 0 || userName.getLength() > 8) {
-            warning.setText("用户名长度请在5-9之间");
+        } else if (userName.getLength() >=10) {
+            warning.setText("用户名长度请在1-10之间");
             return false;
         } else if (password.getLength() < 6 || password.getLength() > 16) {
             warning.setText("密码长度请在6-16之间");

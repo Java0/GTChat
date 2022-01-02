@@ -30,20 +30,17 @@ public class Server {
 
             while (true) {
 
-                ByteBuffer buffer = ByteBuffer.allocate(4096);
-
-                buffer.clear();
-                client.read(buffer);
+                String stringText = receive();
 
                 //将json格式字符串还原回Text对象
-                Text text = new ObjectMapper().readValue(new String(buffer.array()).trim(), Text.class);
+                Text text = new ObjectMapper().readValue(stringText.trim(), Text.class);
 
                 //根据文本类型创建新的线程执行相应方法
-                switch (text.getType()){
+                switch (text.getType()) {
                     case "reg":
-                        new Thread(()-> {
+                        new Thread(() -> {
                             try {
-                                Register(text);
+                                register(text);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -56,12 +53,25 @@ public class Server {
         }
     }
 
-    private static void Register(Text text) throws IOException {
+    private static String receive() throws IOException {
+        ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+        client.read(lengthBuffer);
+
+        lengthBuffer.flip();
+        int length = lengthBuffer.getInt() * 2;
+
+        ByteBuffer stringBuffer = ByteBuffer.allocate(length);
+        client.read(stringBuffer);
+
+        return new String(stringBuffer.array());
+    }
+
+    private static void register(Text text) throws IOException {
 
         //储存密码的文件不存在就创建一个
         File file = new File("regInfo.properties");
 
-        if(!file.exists()){
+        if (!file.exists()) {
             file.createNewFile();
         }
 
@@ -71,10 +81,10 @@ public class Server {
         regInfo.load(new FileReader("regInfo.properties"));
 
         //判断用户是否已存在，若已经存在向客户端发送注册失败的消息，不存在就将用户信息存储进文件
-        if(regInfo.getProperty(text.getSender())!=null){
+        if (regInfo.getProperty(text.getSender()) != null) {
             client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
-            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(),"失败");
-        }else {
+            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(), "失败");
+        } else {
             try {
                 regInfo.setProperty(text.getSender(), getEncryptedString(text.getContent()));
             } catch (NoSuchAlgorithmException e) {
@@ -82,7 +92,7 @@ public class Server {
             }
             regInfo.store(new FileWriter("regInfo.properties"), "The user's registration information, user name and password are stored");
             client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
-            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(),"成功");
+            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(), "成功");
         }
     }
 
@@ -94,22 +104,20 @@ public class Server {
     }
 
 
-    private static void storeLog(String time, String type, String sender, String content) throws  IOException{
+    private static void storeLog(String time, String type, String sender, String content) throws IOException {
         String log = time.concat(":\n").concat("type:").concat(type).concat("  sender:").concat(sender).concat("  content:").concat(content).concat("\n");
 
         File logFile = new File("log.txt");
 
-        if(!logFile.exists()){
+        if (!logFile.exists()) {
             logFile.createNewFile();
         }
 
-        FileOutputStream fos = new FileOutputStream(logFile,true);
+        FileOutputStream fos = new FileOutputStream(logFile, true);
         fos.write(log.getBytes(StandardCharsets.UTF_8));
         fos.close();
 
     }
-
-
 
 
 }
