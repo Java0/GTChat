@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goodtime.chatRoom.client.Client;
 import com.goodtime.chatRoom.Text;
 import com.goodtime.chatRoom.client.GUI.PrimaryPage;
-import com.goodtime.chatRoom.client.GUI.StageUtil;
+import com.goodtime.chatRoom.Util;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -14,17 +14,18 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 public class RegistryController {
 
     @FXML
-    private TextField userName;
+    private TextField userNameField;
 
     @FXML
-    private PasswordField password;
+    private PasswordField passwordField;
 
     @FXML
-    private PasswordField repeat;
+    private PasswordField repeatField;
 
     @FXML
     private Button regButton;
@@ -37,34 +38,60 @@ public class RegistryController {
 
     @FXML
     void register(ActionEvent event) throws IOException {
-        if (formatCheck()) {
-            String text = new ObjectMapper().writeValueAsString(new Text( "reg", userName.getText(), password.getText()));
-            System.out.println(text);
+
+        System.out.println(userNameField.getText());
+        System.out.println(passwordField.getText());
+
+        if (nameCheck() && passwordCheck()) {
+            String password = Util.getSHA256(passwordField.getText());
+
+            String text = new ObjectMapper().writeValueAsString(new Text( "reg", userNameField.getText(), password));
             Client.write(text);
 
             if(Client.read().trim().equals("成功")){
-                StageUtil.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
+                Util.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
             }else {
                 warning.setText("用户名已注册");
             }
         }
     }
+    private boolean passwordCheck(){
 
-    private boolean formatCheck() {
-        if (userName.getLength() == 0 || password.getLength() == 0 || repeat.getLength() == 0) {
+        if(passwordField.getLength()!=0){
+            char[] temp = new char[passwordField.getLength()];
+            passwordField.getText().getChars(0,passwordField.getLength()-1, temp, 0);
+
+            for (char c : temp) {
+                if(Pattern.matches("[\u4E00-\u9FA5]", String.valueOf(c))){
+                    warning.setText("密码中不能含有中文字符");
+                    return false;
+                }
+            }
+
+            if(repeatField.getLength() == 0){
+                warning.setText("为什么不行自己没点b数吗");
+                return false;
+            } else if (passwordField.getLength() < 6 || passwordField.getLength() > 16) {
+                warning.setText("密码长度请在6-16之间");
+                return false;
+            }else if (passwordField.getText().contains(" ")) {
+                warning.setText("密码中不能有空格");
+                return false;
+            } else if (!passwordField.getText().equals(repeatField.getText())) {
+                warning.setText("两次输入的密码不一致");
+                return false;
+            }
+
+        }
+        return true;
+    }
+
+    private boolean nameCheck() {
+        if (userNameField.getLength() == 0) {
             warning.setText("为什么不行自己没点b数吗");
             return false;
-        } else if (userName.getLength() >=10) {
+        } else if (userNameField.getLength() >=10) {
             warning.setText("用户名长度请在1-10之间");
-            return false;
-        } else if (password.getLength() < 6 || password.getLength() > 16) {
-            warning.setText("密码长度请在6-16之间");
-            return false;
-        } else if (password.getText().contains("*")) {
-            warning.setText("密码中不能有空格");
-            return false;
-        } else if (!password.getText().equals(repeat.getText())) {
-            warning.setText("两次输入的密码不一致");
             return false;
         }
         return true;
@@ -72,7 +99,7 @@ public class RegistryController {
 
     @FXML
     void back(ActionEvent event) throws IOException{
-        StageUtil.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
+        Util.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
     }
 
 

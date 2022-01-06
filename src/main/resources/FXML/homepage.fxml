@@ -45,6 +45,7 @@
                 <Button fx:id="loginButton" layoutX="100.0" layoutY="221.0" mnemonicParsing="false" onAction="#login" prefHeight="31.0" prefWidth="97.0" text="Login" />
                 <Button fx:id="registryButton" layoutX="269.0" layoutY="221.0" mnemonicParsing="false" onAction="#registry" prefHeight="31.0" prefWidth="97.0" text="Registry" />
                 <PasswordField fx:id="passwordField" layoutX="100.0" layoutY="173.0" prefHeight="26.0" prefWidth="264.0" />
+            <Label fx:id="warning" layoutX="100.0" layoutY="278.0" />
             </children>
         </AnchorPane>
     </items>

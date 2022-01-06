@@ -1,8 +1,9 @@
 package com.goodtime.chatRoom.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goodtime.chatRoom.Log;
 import com.goodtime.chatRoom.Text;
-import org.apache.commons.codec.binary.Hex;
+
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -10,9 +11,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 public class Server {
 
@@ -38,13 +38,10 @@ public class Server {
                 //根据文本类型创建新的线程执行相应方法
                 switch (text.getType()) {
                     case "reg":
-                        new Thread(() -> {
-                            try {
-                                register(text);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }).start();
+                        new Thread(()->register(text)).start();
+                        break;
+                    case "login":
+                        new Thread(()->login(text)).start();
                         break;
                 }
             }
@@ -52,6 +49,12 @@ public class Server {
             e.printStackTrace();
         }
     }
+
+    private static Thread getNewThread(Supplier<Thread> supplier){
+        return supplier.get();
+    }
+
+
 
     private static String receive() throws IOException {
         ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
@@ -66,58 +69,64 @@ public class Server {
         return new String(stringBuffer.array());
     }
 
-    private static void register(Text text) throws IOException {
+    private static void login(Text text){
+        String userName = text.getSender();
 
-        //储存密码的文件不存在就创建一个
-        File file = new File("regInfo.properties");
+        Properties regInfo = new Properties();;
 
-        if (!file.exists()) {
-            file.createNewFile();
+        try {
+            regInfo.load(new FileReader("regInfo.properties"));
+            String password = regInfo.getProperty(userName);
+            if(password!=null){
+                if(text.getContent().equals(password)){
+                    client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
+                    new Log(text.getType(), text.getSender(), null, true).store();
+                }else {
+                    client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
+                    new Log(text.getType(), text.getSender(), null, false).store();
+                }
+            }else {
+                client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
+                new Log(text.getType(), text.getSender(), null, false).store();
+            }
+
+        }catch (IOException e) {
+            e.printStackTrace();
         }
 
-        //将用户信息文件加载进内存
-        Properties regInfo = new Properties();
+    }
 
-        regInfo.load(new FileReader("regInfo.properties"));
+
+    private static void register(Text text) {
+
+        FileWriter regInfoWriter = null;
+
+        String userName = text.getSender();
+        String password = text.getContent();
+
+        Properties regInfo = null;
+        try {
+            regInfoWriter = new FileWriter("regInfo.properties");
+            //将用户信息文件加载进内存
+            regInfo = new Properties();
+            regInfo.load(new FileReader("regInfo.properties"));
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
 
         //判断用户是否已存在，若已经存在向客户端发送注册失败的消息，不存在就将用户信息存储进文件
-        if (regInfo.getProperty(text.getSender()) != null) {
-            client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
-            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(), "失败");
-        } else {
-            try {
-                regInfo.setProperty(text.getSender(), getEncryptedString(text.getContent()));
-            } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
+        try {
+            if (regInfo.getProperty(userName) != null) {
+                client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
+                new Log(text.getType(), userName,null, false).store();
+            } else {
+                regInfo.setProperty(userName, password);
+                regInfo.store(regInfoWriter, "The user's registration information, user name and password are stored");
+                client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
+                new Log(text.getType(), userName,null, true).store();
             }
-            regInfo.store(new FileWriter("regInfo.properties"), "The user's registration information, user name and password are stored");
-            client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
-            storeLog(TimeUtil.getCurrentTime(), text.getType(), text.getSender(), "成功");
+        }catch (IOException e){
+            e.printStackTrace();
         }
     }
-
-    //对密码进行加密
-    private static String getEncryptedString(String password) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
-        return Hex.encodeHexString(hash);
-    }
-
-
-    private static void storeLog(String time, String type, String sender, String content) throws IOException {
-        String log = time.concat(":\n").concat("type:").concat(type).concat("  sender:").concat(sender).concat("  content:").concat(content).concat("\n");
-
-        File logFile = new File("log.txt");
-
-        if (!logFile.exists()) {
-            logFile.createNewFile();
-        }
-
-        FileOutputStream fos = new FileOutputStream(logFile, true);
-        fos.write(log.getBytes(StandardCharsets.UTF_8));
-        fos.close();
-
-    }
-
-
 }

@@ -1,5 +1,6 @@
 package com.goodtime.chatRoom.client.GUI;
 
+import com.goodtime.chatRoom.Util;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
@@ -17,7 +18,7 @@ public class PrimaryPage extends Application {
     @Override
     public void start(Stage primaryStage) throws IOException {
         PrimaryPage.primaryStage = primaryStage;
-        StageUtil.loadFXMLWithDefault(primaryStage, "homepage.fxml");
+        Util.loadFXMLWithDefault(primaryStage, "homepage.fxml");
     }
 
     public static void launchFrame() {
