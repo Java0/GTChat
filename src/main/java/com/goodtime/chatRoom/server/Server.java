@@ -3,6 +3,7 @@ package com.goodtime.chatRoom.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goodtime.chatRoom.Log;
 import com.goodtime.chatRoom.Text;
+import com.goodtime.chatRoom.user.User;
 
 
 import java.io.*;
@@ -11,11 +12,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Properties;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class Server {
 
+    private static final HashMap<String, User> ONLINE_MAP = new HashMap<>();
 
     private static SocketChannel client = null;
 
@@ -30,10 +34,13 @@ public class Server {
 
             while (true) {
 
-                String stringText = receive();
+                String stringText = receive().trim();
+
+                System.out.println(stringText);
+
 
                 //将json格式字符串还原回Text对象
-                Text text = new ObjectMapper().readValue(stringText.trim(), Text.class);
+                Text text = new ObjectMapper().readValue(stringText, Text.class);
 
                 //根据文本类型创建新的线程执行相应方法
                 switch (text.getType()) {
@@ -50,12 +57,6 @@ public class Server {
         }
     }
 
-    private static Thread getNewThread(Supplier<Thread> supplier){
-        return supplier.get();
-    }
-
-
-
     private static String receive() throws IOException {
         ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
         client.read(lengthBuffer);
@@ -71,23 +72,30 @@ public class Server {
 
     private static void login(Text text){
         String userName = text.getSender();
+        String reInfoPath = "user_info\\regInfo.properties";
+        String usersListPath = "user_info\\userList.properties";
 
-        Properties regInfo = new Properties();;
+        Properties regInfo = getProperties(reInfoPath);;
 
         try {
-            regInfo.load(new FileReader("regInfo.properties"));
             String password = regInfo.getProperty(userName);
             if(password!=null){
                 if(text.getContent().equals(password)){
-                    client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
                     new Log(text.getType(), text.getSender(), null, true).store();
+
+                    Properties userList = getProperties(usersListPath);
+                    userList.load(new FileReader("user_info\\userList.properties"));
+
+                    ONLINE_MAP.put(userName, new ObjectMapper().readValue(userList.getProperty(userName), User.class));
+                    System.out.println(ONLINE_MAP);
+                    client.write(ByteBuffer.wrap("true:登陆成功".getBytes(StandardCharsets.UTF_8)));
                 }else {
-                    client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
                     new Log(text.getType(), text.getSender(), null, false).store();
+                    client.write(ByteBuffer.wrap("false:用户名或密码错误".getBytes(StandardCharsets.UTF_8)));
                 }
             }else {
-                client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
                 new Log(text.getType(), text.getSender(), null, false).store();
+                client.write(ByteBuffer.wrap("false:用户名或密码错误".getBytes(StandardCharsets.UTF_8)));
             }
 
         }catch (IOException e) {
@@ -99,34 +107,61 @@ public class Server {
 
     private static void register(Text text) {
 
-        FileWriter regInfoWriter = null;
+        String reInfoPath = "user_info\\regInfo.properties";
+        String usersListPath = "user_info\\userList.properties";
 
         String userName = text.getSender();
         String password = text.getContent();
 
-        Properties regInfo = null;
-        try {
-            regInfoWriter = new FileWriter("regInfo.properties");
-            //将用户信息文件加载进内存
-            regInfo = new Properties();
-            regInfo.load(new FileReader("regInfo.properties"));
-        }catch (IOException e) {
-            e.printStackTrace();
-        }
+        System.out.println(userName+":"+password);
 
-        //判断用户是否已存在，若已经存在向客户端发送注册失败的消息，不存在就将用户信息存储进文件
+        Properties regInfo = getProperties(reInfoPath);
+        Properties userInfo = getProperties(usersListPath);
         try {
+            //判断用户注册的用户名是否已存在，存在则注册失败。若不存在则注册成功，将注册信息存储至文件
             if (regInfo.getProperty(userName) != null) {
-                client.write(ByteBuffer.wrap("失败".getBytes(StandardCharsets.UTF_8)));
-                new Log(text.getType(), userName,null, false).store();
+                client.write(ByteBuffer.wrap("false:您所注册的用户名已存在".getBytes(StandardCharsets.UTF_8)));
+                new Log(text.getType(), userName, null, false).store();
             } else {
                 regInfo.setProperty(userName, password);
-                regInfo.store(regInfoWriter, "The user's registration information, user name and password are stored");
-                client.write(ByteBuffer.wrap("成功".getBytes(StandardCharsets.UTF_8)));
-                new Log(text.getType(), userName,null, true).store();
+                regInfo.store(new FileWriter(reInfoPath), "The user's registration information, user name and password are stored");
+                new Log(text.getType(), userName, null, true).store();
+
+                try {
+                    userInfo.setProperty(userName, new ObjectMapper().writeValueAsString(new User(userName,null)));
+                    userInfo.store(new FileWriter(usersListPath), "A file stored user`s info");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                client.write(ByteBuffer.wrap("true:注册成功".getBytes(StandardCharsets.UTF_8)));
             }
         }catch (IOException e){
             e.printStackTrace();
         }
+
     }
+
+    private static Properties getProperties(String filePath){
+
+        File file = new File(filePath);
+
+        if(!file.exists()){
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        Properties infoFile = null;
+
+        try {
+            infoFile = new Properties();
+            infoFile.load(new FileReader(filePath));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return infoFile;
+    }
+
 }

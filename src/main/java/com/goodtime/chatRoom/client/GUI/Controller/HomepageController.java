@@ -45,10 +45,12 @@ public class HomepageController {
                 e.printStackTrace();
             }
 
-            if(Client.read().trim().equals("成功")){
-                warning.setText("登录成功");
-            }else{
-                warning.setText("登录失败，请检查用户名或密码是否正确");
+            String[] returned = Client.read().trim().split(":");
+
+            if(returned[0].equals("false")){
+                warning.setText(returned[1]);
+            }if(returned[0].equals("true")){
+                warning.setText(returned[1]);
             }
         }else {
             warning.setText("为什么不行自己没点b数吗");

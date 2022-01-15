@@ -39,22 +39,21 @@ public class RegistryController {
     @FXML
     void register(ActionEvent event) throws IOException {
 
-        System.out.println(userNameField.getText());
-        System.out.println(passwordField.getText());
-
         if (nameCheck() && passwordCheck()) {
             String password = Util.getSHA256(passwordField.getText());
 
             String text = new ObjectMapper().writeValueAsString(new Text( "reg", userNameField.getText(), password));
             Client.write(text);
 
-            if(Client.read().trim().equals("成功")){
+            String[] returned = Client.read().trim().split(":");
+            if(returned[0].equals("true")){
                 Util.loadFXMLWithDefault(PrimaryPage.getStage(),"homepage.fxml");
             }else {
-                warning.setText("用户名已注册");
+                warning.setText(returned[1]);
             }
         }
     }
+
     private boolean passwordCheck(){
 
         if(passwordField.getLength()!=0){
